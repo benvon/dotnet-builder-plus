@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <DotNetCliToolReference Include="dotnet-ef" Version="8.0.*" />
+    <DotNetCliToolReference Include="dotnet-sonarscanner" Version="5.*" />
+    <DotNetCliToolReference Include="dotnet-reportgenerator-globaltool" Version="5.*" />
+    <DotNetCliToolReference Include="dotnet-outdated-tool" Version="3.*" />
+  </ItemGroup>
+</Project> 

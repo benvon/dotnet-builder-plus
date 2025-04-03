@@ -1,5 +1,8 @@
 ARG DOTNET_IMAGE_VERSION=8.0
+
 FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_IMAGE_VERSION} AS builder
+
+ARG DOTNET_IMAGE_VERSION=8.0
 
 # Set environment variables
 ENV NUGET_PACKAGES=/root/.nuget/packages \
@@ -8,53 +11,76 @@ ENV NUGET_PACKAGES=/root/.nuget/packages \
     DOTNET_NOLOGO=1 \
     NUGET_XMLDOC_MODE=skip
 
+# Copy package management files
+COPY packages /packages
+RUN chmod +x /packages/install-packages.sh && \
+    chmod +x /packages/install-tools.sh
+
 # Install global tools
-RUN dotnet tool install -g dotnet-ef --version "8.0.*" && \
-    dotnet tool install -g dotnet-sonarscanner --version "5.*" && \
-    dotnet tool install -g dotnet-reportgenerator-globaltool --version "5.*" && \
-    dotnet tool install -g dotnet-outdated-tool --version "3.*" && \
+RUN /packages/install-tools.sh /packages/Dockerfile.Tools.${DOTNET_IMAGE_VERSION}.csproj && \
     echo 'export PATH="$PATH:/root/.dotnet/tools"' > /etc/profile.d/dotnet-tools.sh && \
     chmod +x /etc/profile.d/dotnet-tools.sh
 
-# Create warmup project with common packages
-RUN DOTNET_LATEST=$(dotnet --version) && \
-    echo "Using .NET SDK version: $DOTNET_LATEST" && \
-    dotnet new console --no-restore -n warmup && \
-    cd warmup && \
-    dotnet new globaljson --sdk-version "$DOTNET_LATEST" && \
-    # Core packages
-    dotnet add package Microsoft.Extensions.Configuration --version "8.*" && \
-    dotnet add package Microsoft.Extensions.DependencyInjection --version "8.*" && \
-    dotnet add package Microsoft.Extensions.Logging --version "8.*" && \
-    # Entity Framework packages
-    dotnet add package Microsoft.EntityFrameworkCore --version "8.*" && \
-    dotnet add package Microsoft.EntityFrameworkCore.Design --version "8.*" && \
-    dotnet add package Microsoft.EntityFrameworkCore.SqlServer --version "8.*" && \
-    dotnet add package Microsoft.EntityFrameworkCore.Tools --version "8.*" && \
-    dotnet add package Pomelo.EntityFrameworkCore.MySql --version "8.*" && \
-    # Azure packages
-    dotnet add package Microsoft.Azure.WebJobs --version "3.*" && \
-    dotnet add package Microsoft.Azure.WebJobs.Extensions --version "5.*" && \
-    dotnet add package Microsoft.Azure.Functions.Worker --version "1.*" && \
-    dotnet add package Microsoft.Azure.Functions.Worker.Sdk --version "1.*" && \
-    # Security packages
-    dotnet add package Microsoft.IdentityModel.Tokens --version "7.*" && \
-    dotnet add package System.IdentityModel.Tokens.Jwt --version "7.*" && \
-    dotnet add package Microsoft.AspNetCore.Authentication.JwtBearer --version "8.*" && \
-    # Testing packages
-    dotnet add package Microsoft.NET.Test.Sdk --version "17.*" && \
-    dotnet add package xunit --version "2.*" && \
-    dotnet add package Moq --version "4.*" && \
-    # API packages
-    dotnet add package Swashbuckle.AspNetCore --version "6.*" && \
-    dotnet restore && \
-    cd .. && \
-    rm -rf warmup && \
+# # Create warmup project with common packages
+# RUN DOTNET_LATEST=$(dotnet --version) && \
+#     echo "Using .NET SDK version: $DOTNET_LATEST"
+
+WORKDIR /warmup
+# Create solution and projects
+RUN dotnet new sln -n warmup && \
+    dotnet new console -n warmup-console && \
+    dotnet new webapi -n warmup-webapi && \
+    dotnet new classlib -n warmup-lib && \
+    dotnet new xunit -n warmup-tests && \
+    dotnet new webapi -n warmup-ef
+
+WORKDIR /warmup/warmup-ef
+# Setup EF warmup project
+RUN VERSION=$(grep Microsoft.EntityFrameworkCore.SqlServer /packages/Dockerfile.Packages.${DOTNET_IMAGE_VERSION}.csproj \
+      | grep -o 'Version="[^"]*"' \
+      | sed 's/.*Version="\([^"]*\)".*/\1/') && \
+    dotnet add package Microsoft.EntityFrameworkCore.SqlServer --version "$VERSION" && \
+    VERSION=$(grep Microsoft.EntityFrameworkCore.Design /packages/Dockerfile.Packages.${DOTNET_IMAGE_VERSION}.csproj \
+      | grep -o 'Version="[^"]*"' \
+      | sed 's/.*Version="\([^"]*\)".*/\1/') && \
+    dotnet add package Microsoft.EntityFrameworkCore.Design --version "$VERSION"
+
+COPY packages/ef-warmup/Models /warmup/warmup-ef/Models
+COPY packages/ef-warmup/Data /warmup/warmup-ef/Data
+COPY packages/ef-warmup/Program.cs /warmup/warmup-ef/Program.cs
+
+# Warm up EF tooling
+WORKDIR /warmup/warmup-ef
+RUN dotnet tool restore && \
+    rm -rf Migrations && \
+    dotnet ef migrations add InitialCreate && \
+    dotnet ef migrations script --idempotent && \
+    dotnet ef dbcontext info
+
+WORKDIR /warmup
+# Add projects to solution
+RUN dotnet sln add warmup-console/warmup-console.csproj && \
+    dotnet sln add warmup-webapi/warmup-webapi.csproj && \
+    dotnet sln add warmup-lib/warmup-lib.csproj && \
+    dotnet sln add warmup-tests/warmup-tests.csproj && \
+    dotnet sln add warmup-ef/warmup-ef.csproj
+
+# Install packages and build
+RUN /packages/install-packages.sh /packages/Dockerfile.Packages.${DOTNET_IMAGE_VERSION}.csproj && \
+    dotnet build --no-restore
+WORKDIR /warmup/warmup-ef
+# Run EF migrations
+RUN dotnet ef migrations add SecondaryCreate && \
+    dotnet ef migrations script
+WORKDIR /warmup
+
+# Clean up
+RUN rm -rf warmup* && \
     chmod -R 777 "$NUGET_PACKAGES"
 
 # Final stage
 FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_IMAGE_VERSION} AS final
-
+ARG DOTNET_IMAGE_VERSION=8.0
 ARG AZURE_CLI_VERSION=2.71.0
 ARG AZ_DIST=bookworm
 ARG AZ_CLI_RELEASE=1
