@@ -51,7 +51,8 @@ COPY packages/ef-warmup/Program.cs /warmup/warmup-ef/Program.cs
 
 # Warm up EF tooling
 WORKDIR /warmup/warmup-ef
-RUN dotnet tool restore && \
+RUN echo "$PATH" && \
+    dotnet tool restore && \
     rm -rf Migrations && \
     dotnet ef migrations add InitialCreate && \
     dotnet ef migrations script --idempotent && \
