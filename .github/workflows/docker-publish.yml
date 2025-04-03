@@ -85,7 +85,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ github.ref }}-${{ matrix.dotnet_version }}
           provenance: true
           sbom: true
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
 
       - name: Cleanup
         if: always()
