@@ -5,8 +5,8 @@ FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_IMAGE_VERSION} AS builder
 ARG DOTNET_IMAGE_VERSION=8.0
 
 # Set environment variables
-ENV NUGET_PACKAGES=/root/.nuget/packages \
-    PATH="${PATH}:/root/.dotnet/tools" \
+ENV NUGET_PACKAGES=/packages/.nuget/packages \
+    PATH="${PATH}:/packages/.dotnet/tools" \
     DOTNET_CLI_TELEMETRY_OPTOUT=1 \
     DOTNET_NOLOGO=1 \
     NUGET_XMLDOC_MODE=skip
@@ -18,7 +18,7 @@ RUN chmod +x /packages/install-packages.sh && \
 
 # Install global tools
 RUN /packages/install-tools.sh /packages/Dockerfile.Tools.${DOTNET_IMAGE_VERSION}.csproj && \
-    echo 'export PATH="$PATH:/root/.dotnet/tools"' > /etc/profile.d/dotnet-tools.sh && \
+    echo 'export PATH="$PATH:/packages/.dotnet/tools"' > /etc/profile.d/dotnet-tools.sh && \
     chmod +x /etc/profile.d/dotnet-tools.sh
 
 # # Create warmup project with common packages
@@ -51,7 +51,8 @@ COPY packages/ef-warmup/Program.cs /warmup/warmup-ef/Program.cs
 
 # Warm up EF tooling
 WORKDIR /warmup/warmup-ef
-RUN dotnet tool restore && \
+RUN echo "$PATH" && \
+    dotnet tool restore && \
     rm -rf Migrations && \
     dotnet ef migrations add InitialCreate && \
     dotnet ef migrations script --idempotent && \
@@ -109,12 +110,12 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy artifacts from builder
-COPY --from=builder /root/.dotnet/tools /root/.dotnet/tools
-COPY --from=builder /root/.nuget /root/.nuget
+COPY --from=builder /packages/.dotnet/tools /packages/.dotnet/tools
+COPY --from=builder /packages/.nuget /packages/.nuget
 COPY --from=builder /etc/profile.d/dotnet-tools.sh /etc/profile.d/
 
-ENV PATH="${PATH}:/root/.dotnet/tools" \
+ENV PATH="${PATH}:/packages/.dotnet/tools" \
     DOTNET_CLI_TELEMETRY_OPTOUT=1 \
     DOTNET_NOLOGO=1 \
     NUGET_XMLDOC_MODE=skip \
-    NUGET_PACKAGES=/root/.nuget/packages
+    NUGET_PACKAGES=/packages/.nuget/packages

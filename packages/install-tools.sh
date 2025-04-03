@@ -18,5 +18,5 @@ grep -o 'Include="[^"]*" Version="[^"]*"' "$PROJECT_FILE" | while read -r line; 
     tool=$(echo "$line" | sed 's/.*Include="\([^"]*\)".*/\1/')
     version=$(echo "$line" | sed 's/.*Version="\([^"]*\)".*/\1/')
     echo "Installing $tool version $version"
-    dotnet tool install -g "$tool" --version "$version"
+    dotnet tool install --tool-path /packages/.dotnet/tools "$tool" --version "$version"
 done 
