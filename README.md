@@ -46,6 +46,16 @@ pool:
   vmImage: 'ubuntu-latest'
   container:
     image: gcr.io/benvon/dotnet-builder-plus:v0.2.1-dotnet8.0
+    options: >
+      --mount type=bind,src=$(Pipeline.Workspace)/.nuget/packages,dst=/packages/.nuget/packages
+      --env NUGET_PACKAGES=/packages.nuget/packages
+
+    ...
+        - task: Cache@2
+          displayName: Cache nuget packages
+          inputs:
+            key: 'nuget | "$(Agent.OS)" | **/*.csjproj,**/*.packages.json,!**/bin/**,!**/obj/**'
+            path: $(Pipeline.Workspace)/.nuget/packages
 ```
 
 ## Pre-warmed Components
