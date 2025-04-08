@@ -1,18 +1,13 @@
 # dotnet-builder-plus
 
-A .NET builder image that contains common tools for building .NET applications in an Azure DevOps (ADO) environment. This image is based on the official Microsoft .NET SDK image and includes additional tools and packages commonly needed for enterprise .NET development. **This image is intentionally very large.** The goal is to speed up CI builds of dotnet applications by pre-caching as much of the dotNet frameworks and packages as possible so that this work doesn't have to be done on every CI run.
+A .NET builder image that contains common tools for building .NET applications in an Azure DevOps (ADO) environment. This image is based on the official Microsoft .NET SDK image and includes additional tools and packages commonly needed for enterprise .NET development.
+
+Attempts have been made to minimize the size of this image by trimming cached python libraries from the Azure CLI installation and using a minimal JRE installation.
 
 ## Features
 
 - Based on Microsoft's official .NET SDK image (version 8.0)
-- Pre-installed global tools:
-  - Entity Framework Core CLI (`dotnet-ef`)
-  - SonarScanner for .NET (`dotnet-sonarscanner`)
-  - ReportGenerator (`dotnet-reportgenerator-globaltool`)
-  - NuGet Package Outdated Checker (`dotnet-outdated-tool`)
 - Azure CLI integration
-- Pre-warmed NuGet package cache
-- Pre-configured Entity Framework Core tooling
 - Additional development tools:
   - Java Development Kit (JDK)
   - jq for JSON processing
@@ -34,7 +29,6 @@ The image sets several environment variables to optimize the build process:
 The image is designed to be used in Azure DevOps pipeline builds. It includes all necessary tools for:
 
 - Building .NET applications
-- Running Entity Framework Core migrations
 - Code analysis with SonarQube
 - Test coverage reporting
 - Package management and updates
@@ -57,14 +51,6 @@ pool:
             key: 'nuget | "$(Agent.OS)" | **/*.csjproj,**/*.packages.json,!**/bin/**,!**/obj/**'
             path: $(Pipeline.Workspace)/.nuget/packages
 ```
-
-## Pre-warmed Components
-
-The image includes pre-warmed components to speed up builds:
-
-- Common NuGet packages
-- Entity Framework Core tooling
-- Sample projects for warmup (console, webapi, classlib, xunit)
 
 ## License
 
