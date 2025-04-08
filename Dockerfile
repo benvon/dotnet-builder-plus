@@ -1,5 +1,5 @@
 ARG DOTNET_IMAGE_VERSION=8.0
-FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_IMAGE_VERSION} AS final
+FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_IMAGE_VERSION} 
 ARG AZURE_CLI_VERSION=2.71.0
 ARG AZ_DIST=bookworm
 ARG AZ_CLI_RELEASE=1
